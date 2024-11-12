@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1075337256760",
+    "firebase_url": "https://sem3-e5826-default-rtdb.firebaseio.com",
+    "project_id": "sem3-e5826",
+    "storage_bucket": "sem3-e5826.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1075337256760:android:67f74910b248e3ea72ebcd",
+        "android_client_info": {
+          "package_name": "com.devcorp.dairy_connect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzTzdyqapGueH2mkXTRQMjp9AHWkOOWoU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
