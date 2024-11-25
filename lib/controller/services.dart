@@ -1,8 +1,13 @@
 import 'dart:convert';
 
+import 'package:dairy_connect/controller/ServiceOptions/feed_services.dart';
+import 'package:dairy_connect/controller/ServiceOptions/financial_records.dart';
+import 'package:dairy_connect/controller/ServiceOptions/milk_records.dart';
+import 'package:dairy_connect/controller/ServiceOptions/mpesa_service.dart';
+import 'package:dairy_connect/controller/ServiceOptions/vet_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:dairy_connect/models/Services.dart'; // Import the Service class and services list
+import 'package:dairy_connect/models/Services.dart';
 import 'package:http/http.dart' as http;
 
 class Services extends StatefulWidget {
@@ -15,6 +20,34 @@ class Services extends StatefulWidget {
 class _ServicesState extends State<Services> {
   bool obscurePass = true;
   Map<String, dynamic>? userDetails;
+  void navigateToServicePage(Service service) {
+    if (service.title == "Veterinary Services") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => VetService()),
+      );
+    } else if (service.title == "Milk Collection") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => MilkRecords()),
+      );
+    } else if (service.title == "Financial Services") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => FinancialRecords()),
+      );
+    } else if (service.title == "Feed Services") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => FeedServices()),
+      );
+    } else if (service.title == "Withdrawal Service") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => MpesaService()),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -70,11 +103,11 @@ class _ServicesState extends State<Services> {
               title: obscurePass
                   ? Text("*** Ksh")
                   : Text(
-                      "${userDetails?['balance'] ?? 'Loading...'} Ksh",
-                      style: TextStyle(
-                        color: Colors.green.shade700,
-                      ),
-                    ),
+                "${userDetails?['balance'] ?? 'Loading...'} Ksh",
+                style: TextStyle(
+                  color: Colors.green.shade700,
+                ),
+              ),
               trailing: IconButton(
                 onPressed: () {
                   setState(() {
@@ -106,11 +139,7 @@ class _ServicesState extends State<Services> {
                 itemBuilder: (context, index) {
                   final service = servicesList[index];
                   return GestureDetector(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Tapped on ${service.title}')),
-                      );
-                    },
+                    onTap: () => navigateToServicePage(service),
                     child: Card(
                       elevation: 4,
                       shape: RoundedRectangleBorder(
@@ -121,14 +150,15 @@ class _ServicesState extends State<Services> {
                         children: [
                           Expanded(
                             child: ClipRRect(
-                              borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(12)),
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
                               child: Image.network(
                                 service.photoUrl,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    Icon(Icons.broken_image,
-                                        size: 80, color: Colors.grey),
+                                errorBuilder: (context, error, stackTrace) => Icon(
+                                  Icons.broken_image,
+                                  size: 80,
+                                  color: Colors.grey,
+                                ),
                               ),
                             ),
                           ),
@@ -156,3 +186,5 @@ class _ServicesState extends State<Services> {
     );
   }
 }
+
+

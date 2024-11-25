@@ -1,6 +1,11 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:pie_chart/pie_chart.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:http/http.dart' as http;
+
+import '../models/Liters.dart';
 
 class Dashboard extends StatefulWidget {
   Dashboard({Key? key}) : super(key: key);
@@ -12,6 +17,58 @@ class Dashboard extends StatefulWidget {
 class _DashboardState extends State<Dashboard> {
   TextEditingController search = TextEditingController();
   String name = "";
+
+  late Future<Map<String, dynamic>> futureData;
+  Future<Map<String, dynamic>> fetchData() async {
+    final response = await http.get(Uri.parse(
+        'https://dairyconnect.onrender.com/api/v1/dairyconnect/transactions'));
+
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body);
+      double trueLiters = 0;
+      double falseLiters = 0;
+      Map<String, double> dailyLiters = {};
+
+      for (var transaction in data) {
+        if (transaction['status']) {
+          trueLiters += transaction['liters'];
+        } else {
+          falseLiters += transaction['liters'];
+        }
+
+        String date =
+            transaction['date'].substring(0, 10); // Extract the date part
+        double liters = transaction['liters'].toDouble();
+
+        if (dailyLiters.containsKey(date)) {
+          dailyLiters[date] = dailyLiters[date]! + liters;
+        } else {
+          dailyLiters[date] = liters;
+        }
+      }
+
+      List<DailyLiters> litersList = dailyLiters.entries.map((entry) {
+        return DailyLiters(DateTime.parse(entry.key), entry.value);
+      }).toList();
+
+      return {
+        "pieData": {
+          "True Transactions": trueLiters,
+          "False Transactions": falseLiters,
+        },
+        "barData": litersList,
+      };
+    } else {
+      throw Exception('Failed to load data');
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    futureData = fetchData();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isSmallScreen = MediaQuery.of(context).size.width < 600;
@@ -169,131 +226,91 @@ class _DashboardState extends State<Dashboard> {
                                     Row(
                                       children: [
                                         SizedBox(
-                                            width: 840,
-                                            height: 400,
-                                            child: Card(
-                                              child: StreamBuilder(
-                                                  stream: FirebaseFirestore
-                                                      .instance
-                                                      .collection('acc2acc Transactions')
-                                                      .snapshots(),
-                                                  builder:
-                                                      (context, snapshot) {
-                                                    double acc2acc = double.parse(snapshot.data!.docs.length.toString());
-                                                    if(snapshot.hasData){
-                                                      return StreamBuilder(
-                                                          stream: FirebaseFirestore
-                                                              .instance
-                                                              .collection('transaction')
-                                                              .snapshots(),
-                                                          builder:
-                                                              (context, snapsho) {
-                                                                var data7 = snapsho.data!.docs.reversed.toList();
-                                                                var data8 = snapshot.data!.docs.reversed.toList();
-                                                                double mpesa=double.parse(snapsho.data!.docs.length.toString());
-                                                                late int mpTotal;
-                                                                late int accTotal;
-                                                                for(var doc in data7){
-                                                                  mpTotal = doc['amount'];
-                                                                  mpTotal ++;
-                                                                }
+                                          width: 840,
+                                          height: 400,
+                                          child: Card(
+                                              child:  FutureBuilder<Map<String, dynamic>>(
+                                                future: futureData,
+                                                builder: (context, snapshot) {
+                                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                                    return Center(child: CircularProgressIndicator());
+                                                  } else if (snapshot.hasError) {
+                                                    return Center(child: Text('Error: ${snapshot.error}'));
+                                                  } else if (snapshot.hasData) {
+                                                    Map<String, double> pieData = snapshot.data!['pieData'];
+                                                    List<DailyLiters> barData = snapshot.data!['barData'];
 
-                                                                for(var doc1 in data8){
-                                                                  accTotal = doc1['amount'];
-                                                                  accTotal ++;
-                                                                }
-
-                                                                Map<String, double> dataMap = {
-                                                                  "M-pesa Transactions": mpesa,
-                                                                  "Account 2 Account": acc2acc,
-
-                                                                };
-                                                            return Row(
-                                                              crossAxisAlignment: CrossAxisAlignment.center,
-
-                                                              children: [
-
-                                                                Padding(
-                                                                  padding: const EdgeInsets.all(30.0),
-                                                                  child: Column(
-                                                                    mainAxisAlignment: MainAxisAlignment.center,
-
-                                                                    children: [
-
-                                                                      SizedBox(
-                                                                        height: 10,
+                                                    return Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child: Card(
+                                                            child: Padding(
+                                                              padding: const EdgeInsets.all(30.0),
+                                                              child: Column(
+                                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                                children: [
+                                                                  SizedBox(height: 4),
+                                                                  SfCircularChart(
+                                                                    title: ChartTitle(text: 'Transaction'),
+                                                                    legend: Legend(isVisible: true),
+                                                                    series: <CircularSeries>[
+                                                                      PieSeries<MapEntry<String, double>, String>(
+                                                                        dataSource: pieData.entries.toList(),
+                                                                        xValueMapper: (MapEntry<String, double> data, _) => data.key,
+                                                                        yValueMapper: (MapEntry<String, double> data, _) => data.value,
+                                                                        dataLabelSettings: DataLabelSettings(isVisible: true),
                                                                       ),
-                                                                      PieChart(
-                                                                        dataMap: dataMap,
-                                                                        animationDuration: Duration(milliseconds: 800),
-                                                                        chartLegendSpacing: 32,
-                                                                        chartRadius: MediaQuery.of(context).size.width / 10,
-                                                                        colorList: [Colors.green,Colors.yellow],
-                                                                        initialAngleInDegree: 0,
-                                                                        chartType: ChartType.ring,
-                                                                        ringStrokeWidth: 32,
-                                                                        centerText: "Transaction",
-                                                                        legendOptions: LegendOptions(
-                                                                          showLegendsInRow: false,
-                                                                          legendPosition: LegendPosition.right,
-                                                                          showLegends: true,
-                                                                          legendShape: BoxShape.circle,
-                                                                          legendTextStyle: TextStyle(
-                                                                            fontWeight: FontWeight.bold,
-                                                                          ),
-                                                                        ),
-                                                                        chartValuesOptions: ChartValuesOptions(
-                                                                          showChartValueBackground: true,
-                                                                          showChartValues: true,
-                                                                          showChartValuesInPercentage: false,
-                                                                          showChartValuesOutside: false,
-                                                                          decimalPlaces: 1,
-                                                                        ),
-                                                                        // gradientList: ---To add gradient colors---
-                                                                        // emptyColorGradient: ---Empty Color gradient---
-                                                                      )
                                                                     ],
                                                                   ),
-                                                                ),
-                                                                SizedBox(width: 100,),
-                                                                Column(
-                                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                                  children: [
-                                                                    Text("Total Ksh transacted",style: TextStyle(
-                                                                      fontWeight: FontWeight.bold,
-                                                                      fontSize: 25,
-                                                                      color: Colors.black,
-                                                                    ),),
-                                                                    SizedBox(
-                                                                      height: 12,
+                                                                ],
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        Expanded(
+                                                          child: Card(
+                                                            child: Padding(
+                                                              padding: const EdgeInsets.all(30.0),
+                                                              child: Column(
+                                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                                children: [
+                                                                  SizedBox(height: 10),
+                                                                  Text(
+                                                                    'Daily Liters Collected',
+                                                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                                                  ),
+                                                                  SizedBox(height: 10),
+                                                                  Expanded(
+                                                                    child: SfCartesianChart(
+                                                                      primaryXAxis: DateTimeAxis(),
+                                                                      title: ChartTitle(text: 'Daily Liters Collected'),
+                                                                      legend: Legend(isVisible: true),
+                                                                      tooltipBehavior: TooltipBehavior(enable: true),
+                                                                      series: <CartesianSeries>[
+                                                                        ColumnSeries<DailyLiters, DateTime>(
+                                                                          dataSource: barData,
+                                                                          xValueMapper: (DailyLiters liters, _) => liters.date,
+                                                                          yValueMapper: (DailyLiters liters, _) => liters.liters,
+                                                                          name: 'Liters',
+                                                                          dataLabelSettings: DataLabelSettings(isVisible: true),
+                                                                        ),
+                                                                      ],
                                                                     ),
-                                                                    Text("M-pesa Transactions : $mpTotal ksh" ,style: TextStyle(
-                                                                      fontWeight: FontWeight.bold,
-                                                                      fontSize: 15,
-                                                                      color: Colors.black,
-                                                                    ),),
-                                                                    Text("Account to Acount: $accTotal Ksh",style: TextStyle(
-                                                                      fontWeight: FontWeight.bold,
-                                                                      fontSize: 15,
-                                                                      color: Colors.black,
-                                                                    ),)
-                                                                  ],
-                                                                )
-                                                              ],
-                                                            );
-                                                          });
-
-                                                    }else{
-                                                      return Column(
-                                                        mainAxisAlignment: MainAxisAlignment.center,
-                                                        children: [
-                                                          CircularProgressIndicator(),
-                                                        ],
-                                                      );
-                                                    }
-                                                      }),
-                                            ))
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  } else {
+                                                    return Center(child: Text('No data available'));
+                                                  }
+                                                },
+                                              ),
+                                          ),
+                                        ),
                                       ],
                                     )
                                   ],
